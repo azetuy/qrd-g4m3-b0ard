@@ -82,7 +82,3 @@ node test_quoridor.js
 - GitHub Pagesで自動公開
 - mainブランチにpushすると自動的にデプロイされる
 - 特別なビルドプロセスは不要（静的HTMLファイル）
-
-## ライセンス
-
-MIT License（デフォルト）
