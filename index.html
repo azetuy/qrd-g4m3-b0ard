@@ -384,6 +384,7 @@ h1 {
       <button id="btn-v" class="orient-btn" onclick="setOrientation('v')">┃ 縦</button>
     </div>
   </div>
+  <button id="btn-undo" onclick="undoLast()" disabled>↩ 戻す</button>
   <button class="mute-btn" id="btn-mute" onclick="toggleMute()">🔊</button>
   <button onclick="resetGame()">リスタート</button>
 </div>
@@ -447,6 +448,37 @@ function calcBoardSize() {
 }
 
 let state, mode, wallOrientation, muted, audioCtx, gameOver;
+const DEFAULT_MODE = 'move';
+let history = []; // スナップショットのスタック
+
+function saveHistory() {
+  history.push({
+    players: state.players.map(p => ({ ...p })),
+    walls: state.walls.map(w => ({ ...w })),
+    wallCounts: [...state.wallCounts],
+    turn: state.turn,
+    gameOver,
+  });
+  updateUndoBtn();
+}
+
+function undoLast() {
+  if (history.length === 0) return;
+  const snap = history.pop();
+  state.players = snap.players;
+  state.walls    = snap.walls;
+  state.wallCounts = snap.wallCounts;
+  state.turn     = snap.turn;
+  gameOver       = snap.gameOver;
+  document.getElementById('victory-overlay').classList.remove('show');
+  updateUndoBtn();
+  showStatus('1手戻しました');
+  render();
+}
+
+function updateUndoBtn() {
+  document.getElementById('btn-undo').disabled = history.length === 0;
+}
 
 function initState() {
   state = {
@@ -769,6 +801,7 @@ function onCellClick(r, c) {
   const mv = getValidMoves(state.turn).find(m => m.row === r && m.col === c);
   if (!mv) { playError(); showStatus('そこには移動できません'); return; }
 
+  saveHistory();
   state.players[state.turn].row = r;
   state.players[state.turn].col = c;
   playMove();
@@ -869,10 +902,15 @@ function onIntersectionClick(ir, ic) {
 
 function placeWall(ir, ic, orient) {
   console.log(`[WALL] === PLACED wall at (${ir},${ic}) orient=${orient} ===`);
+  saveHistory();
   state.walls.push({ ir, ic, orient });
   state.wallCounts[state.turn]--;
   playWall();
   nextTurn();
+
+  // 壁配置後はデフォルトの移動モードに戻る
+  mode = DEFAULT_MODE;
+  setMode(mode);
 }
 
 // Hover preview
@@ -980,6 +1018,7 @@ function toggleMute() {
 
 function resetGame() {
   document.getElementById('victory-overlay').classList.remove('show');
+  history = [];
   initState();
   mode = 'move';
   wallOrientation = 'h';
@@ -988,6 +1027,7 @@ function resetGame() {
   document.getElementById('btn-h').classList.add('active');
   document.getElementById('btn-v').classList.remove('active');
   document.body.classList.remove('wall-mode');
+  updateUndoBtn();
   showStatus('');
   render();
 }
